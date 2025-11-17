@@ -6,6 +6,7 @@ from typing import Optional, List
 from datetime import date, time, datetime
 from enum import Enum
 
+
 class AppointmentStatusDTO(str, Enum):
     """Status enumeration for API"""
     SCHEDULED = "scheduled"
@@ -13,6 +14,7 @@ class AppointmentStatusDTO(str, Enum):
     CANCELLED = "cancelled"
     COMPLETED = "completed"
     NO_SHOW = "no_show"
+
 
 class CreateAppointmentDTO(BaseModel):
     """
@@ -26,21 +28,21 @@ class CreateAppointmentDTO(BaseModel):
     duration_minutes: int = Field(default=30, ge=15, le=120, description="Duration in minutes")
     reason: Optional[str] = Field(None, max_length=500, description="Reason for appointment")
     notes: Optional[str] = Field(None, max_length=1000, description="Additional notes")
-    
+
     @validator('appointment_date')
     def validate_date(cls, v):
         """Validate appointment date is not in the past"""
         if v < date.today():
             raise ValueError('Appointment date cannot be in the past')
         return v
-    
+
     @validator('appointment_time')
     def validate_time(cls, v):
         """Validate appointment time is in 15-minute intervals"""
         if v.minute % 15 != 0:
             raise ValueError('Appointment time must be in 15-minute intervals')
         return v
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -54,6 +56,7 @@ class CreateAppointmentDTO(BaseModel):
             }
         }
 
+
 class UpdateAppointmentDTO(BaseModel):
     """
     DTO for updating appointments
@@ -65,13 +68,13 @@ class UpdateAppointmentDTO(BaseModel):
     status: Optional[AppointmentStatusDTO] = Field(None, description="New status")
     reason: Optional[str] = Field(None, max_length=500)
     notes: Optional[str] = Field(None, max_length=1000)
-    
+
     @validator('appointment_date')
     def validate_date(cls, v):
         if v and v < date.today():
             raise ValueError('Cannot reschedule to past date')
         return v
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -81,17 +84,19 @@ class UpdateAppointmentDTO(BaseModel):
             }
         }
 
+
 class TimeSlotDTO(BaseModel):
     """DTO for time slots"""
     start_time: time
     end_time: time
     available: bool = True
-    
+
     @property
     def duration_minutes(self) -> int:
         start_minutes = self.start_time.hour * 60 + self.start_time.minute
         end_minutes = self.end_time.hour * 60 + self.end_time.minute
         return end_minutes - start_minutes
+
 
 class AppointmentResponseDTO(BaseModel):
     """
@@ -112,7 +117,7 @@ class AppointmentResponseDTO(BaseModel):
     updated_at: datetime
     cancelled_at: Optional[datetime]
     cancellation_reason: Optional[str]
-    
+
     @classmethod
     def from_domain(cls, appointment):
         """
@@ -135,7 +140,7 @@ class AppointmentResponseDTO(BaseModel):
             cancelled_at=appointment.cancelled_at,
             cancellation_reason=appointment.cancellation_reason
         )
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -156,6 +161,7 @@ class AppointmentResponseDTO(BaseModel):
             }
         }
 
+
 class AppointmentListResponseDTO(BaseModel):
     """
     DTO for paginated appointment list
@@ -167,18 +173,19 @@ class AppointmentListResponseDTO(BaseModel):
     page_size: int
     has_next: bool = False
     has_previous: bool = False
-    
+
     @validator('has_next', always=True)
     def calculate_has_next(cls, v, values):
         if 'total' in values and 'page' in values and 'page_size' in values:
             return values['page'] * values['page_size'] < values['total']
         return False
-    
+
     @validator('has_previous', always=True)
     def calculate_has_previous(cls, v, values):
         if 'page' in values:
             return values['page'] > 1
         return False
+
 
 class AvailableSlotsResponseDTO(BaseModel):
     """DTO for available slots response"""
@@ -186,7 +193,7 @@ class AvailableSlotsResponseDTO(BaseModel):
     date: date
     available_slots: List[TimeSlotDTO]
     total_slots: int
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -208,6 +215,7 @@ class AvailableSlotsResponseDTO(BaseModel):
             }
         }
 
+
 class ErrorResponseDTO(BaseModel):
     """
     DTO for error responses
@@ -217,7 +225,7 @@ class ErrorResponseDTO(BaseModel):
     message: str
     details: Optional[dict] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -231,6 +239,7 @@ class ErrorResponseDTO(BaseModel):
             }
         }
 
+
 class HealthCheckResponseDTO(BaseModel):
     """DTO for health check responses"""
     status: str
@@ -238,7 +247,7 @@ class HealthCheckResponseDTO(BaseModel):
     version: str = "1.0.0"
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     dependencies: dict = {}
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -253,6 +262,7 @@ class HealthCheckResponseDTO(BaseModel):
             }
         }
 
+
 class AppointmentFilterDTO(BaseModel):
     """
     DTO for filtering appointments
@@ -266,8 +276,9 @@ class AppointmentFilterDTO(BaseModel):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
     sort_by: str = Field(default="appointment_date")
-    sort_order: str = Field(default="asc", regex="^(asc|desc)$")
-    
+    # En Pydantic 2, regex se reemplaza por pattern:
+    sort_order: str = Field(default="asc", pattern="^(asc|desc)$")
+
     @validator('date_to')
     def validate_date_range(cls, v, values):
         if v and 'date_from' in values and values['date_from']:
@@ -275,13 +286,14 @@ class AppointmentFilterDTO(BaseModel):
                 raise ValueError('date_to must be after date_from')
         return v
 
+
 class BulkAppointmentCreateDTO(BaseModel):
     """
     DTO for creating multiple appointments
     Demonstrates: Bulk operations
     """
     appointments: List[CreateAppointmentDTO]
-    
+
     @validator('appointments')
     def validate_appointments(cls, v):
         if not v or len(v) == 0:
@@ -289,6 +301,7 @@ class BulkAppointmentCreateDTO(BaseModel):
         if len(v) > 10:
             raise ValueError('Maximum 10 appointments can be created at once')
         return v
+
 
 class AppointmentStatisticsDTO(BaseModel):
     """
@@ -306,7 +319,7 @@ class AppointmentStatisticsDTO(BaseModel):
     busiest_hour: Optional[int]
     cancellation_rate: float
     no_show_rate: float
-    
+
     class Config:
         schema_extra = {
             "example": {

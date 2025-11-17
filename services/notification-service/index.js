@@ -1,35 +1,132 @@
 // Notification Service - Main Application
 // Demonstrates: Strategy Pattern for different notification channels
 
+'use strict';
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
-// Import notification strategies
-const { EmailNotificationStrategy } = require('./strategies/email.strategy');
-const { SMSNotificationStrategy } = require('./strategies/sms.strategy');
+// -------------------------------------------------------------------------
+// IMPORTS – Dejamos SOLO Telegram activo. Todo lo demás desactivado.
+// -------------------------------------------------------------------------
+
+// ❌ Canales NO implementados aún — LOS COMENTAMOS
+// const { EmailNotificationStrategy } = require('./strategies/email.strategy');
+// const { SMSNotificationStrategy } = require('./strategies/sms.strategy');
+// const { WhatsAppNotificationStrategy } = require('./strategies/whatsapp.strategy');
+
+// ✅ ÚNICO canal activo
 const { TelegramNotificationStrategy } = require('./strategies/telegram.strategy');
-const { WhatsAppNotificationStrategy } = require('./strategies/whatsapp.strategy');
 
-// Import services
-const { NotificationService } = require('./services/notification.service');
-const { TemplateService } = require('./services/template.service');
-const { NotificationRepository } = require('./repositories/notification.repository');
+// -------------------------------------------------------------------------
+// SERVICES – Comentamos los que NO existen todavía
+// -------------------------------------------------------------------------
 
-// Import infrastructure
-const { Database } = require('./infrastructure/database');
-const { EventConsumer } = require('./infrastructure/event-consumer');
-const { ErrorHandler } = require('./middleware/error-handler');
-const { Logger } = require('./utils/logger');
+// ❌ NO existen todavía en tu carpeta
+// const { NotificationService } = require('./services/notification.service');
+// const { TemplateService } = require('./services/template.service');
+// const { NotificationRepository } = require('./repositories/notification.repository');
+
+// ❌ Infraestructura faltante
+// const { Database } = require('./infrastructure/database');
+// const { EventConsumer } = require('./infrastructure/event-consumer');
+// const { ErrorHandler } = require('./middleware/error-handler');
+// const { Logger } = require('./utils/logger');
+
+// -------------------------------------------------------------------------
+// Para que NO TRUENE el servicio, creamos IMPLEMENTACIONES de respaldo (stubs)
+// -------------------------------------------------------------------------
+
+class Logger {
+    info(...args) { console.log('[INFO]', ...args); }
+    error(...args) { console.log('[ERROR]', ...args); }
+    warn(...args) { console.log('[WARN]', ...args); }
+}
+
+class Database {
+    constructor(url) { this.url = url; }
+    async connect() {
+        console.log('[DB] Fake database connected');
+        return true;
+    }
+}
+
+class NotificationRepository {
+    constructor() {}
+    async findById(id) { return null; }
+    async list() { return []; }
+    async save(notification) { return notification; }
+}
+
+class TemplateService {
+    listTemplates() { return []; }
+    getTemplate(name) { return null; }
+    createTemplate(t) { return t; }
+    updateTemplate() { return null; }
+}
+
+class NotificationService {
+    constructor(strategies) {
+        this.strategies = strategies;
+    }
+
+    async send({ channel, recipient, template, data }) {
+        const strategy = this.strategies[channel];
+
+        if (!strategy) {
+            throw new Error(`Channel not supported: ${channel}`);
+        }
+
+        // Envía un mensaje muy simple
+        return await strategy.send({
+            recipient,
+            message: `Template: ${template || 'default'}`
+        });
+    }
+
+    async sendBulk(list) {
+        const results = [];
+        for (const item of list) {
+            try {
+                const res = await this.send(item);
+                results.push({ status: 'sent', ...res });
+            } catch (err) {
+                results.push({ status: 'failed', error: err.message });
+            }
+        }
+        return results;
+    }
+
+    async retry(notification) {
+        return notification;
+    }
+}
+
+class EventConsumer {
+    constructor() {}
+    async start() { console.log('[EVENT] Fake event consumer running'); }
+    subscribe() {}
+}
+
+class ErrorHandler {
+    handle(err, req, res, next) {
+        console.error('[ERROR]', err);
+        res.status(500).json({ error: err.message });
+    }
+}
+// -------------------------------------------------------------------------
+// Aplicación principal del servicio
+// -------------------------------------------------------------------------
 
 class NotificationServiceApp {
     constructor() {
         this.app = express();
         this.port = process.env.PORT || 3003;
         this.logger = new Logger('NotificationService');
-        
-        // Initialize dependencies
+
+        // Inicializar todo
         this.initializeDependencies();
         this.setupMiddleware();
         this.setupRoutes();
@@ -37,36 +134,36 @@ class NotificationServiceApp {
         this.setupErrorHandling();
     }
 
-    // Dependency Injection and Strategy Pattern setup
+    // ---------------------------------------------------------------------
+    // Inicialización de dependencias (Strategy + DI)
+    // ---------------------------------------------------------------------
     initializeDependencies() {
-        // Infrastructure
         this.database = new Database(process.env.DATABASE_URL);
-        
-        // Repositories
-        this.notificationRepository = new NotificationRepository(this.database);
-        
-        // Services
+
+        this.notificationRepository = new NotificationRepository();
         this.templateService = new TemplateService();
-        
-        // Notification strategies (Strategy Pattern)
+
+        // -----------------------------------------------------------------
+        // SOLO Telegram activo
+        // -----------------------------------------------------------------
         this.notificationStrategies = {
-            email: new EmailNotificationStrategy(),
-            sms: new SMSNotificationStrategy(),
-            telegram: new TelegramNotificationStrategy(process.env.TELEGRAM_BOT_TOKEN),
-            whatsapp: new WhatsAppNotificationStrategy()
+            telegram: new TelegramNotificationStrategy(process.env.TELEGRAM_BOT_TOKEN)
         };
-        
-        // Main notification service
+
+        // Servicio principal de notificaciones
         this.notificationService = new NotificationService(
             this.notificationStrategies,
             this.notificationRepository,
             this.templateService
         );
-        
-        // Event consumer
+
+        // Consumidor de eventos (fake)
         this.eventConsumer = new EventConsumer(this.notificationService);
     }
 
+    // ---------------------------------------------------------------------
+    // Middleware global
+    // ---------------------------------------------------------------------
     setupMiddleware() {
         this.app.use(helmet());
         this.app.use(cors());
@@ -75,6 +172,9 @@ class NotificationServiceApp {
         this.app.use(express.urlencoded({ extended: true }));
     }
 
+    // ---------------------------------------------------------------------
+    // Rutas principales del servicio
+    // ---------------------------------------------------------------------
     setupRoutes() {
         // Health check
         this.app.get('/health', (req, res) => {
@@ -85,55 +185,59 @@ class NotificationServiceApp {
             });
         });
 
-        // Send notification
+        // Enviar una notificación
         this.app.post('/notifications/send', this.sendNotification.bind(this));
-        
-        // Send bulk notifications
+
+        // Enviar múltiples notificaciones
         this.app.post('/notifications/send-bulk', this.sendBulkNotifications.bind(this));
-        
-        // Get notification status
+
+        // Obtener una notificación por ID
         this.app.get('/notifications/:id', this.getNotificationStatus.bind(this));
-        
-        // List notifications
+
+        // Listar notificaciones
         this.app.get('/notifications', this.listNotifications.bind(this));
-        
-        // Retry failed notification
+
+        // Reintentar notificación fallida
         this.app.post('/notifications/:id/retry', this.retryNotification.bind(this));
-        
-        // Template management
+
+        // Manejo de templates
         this.app.get('/templates', this.listTemplates.bind(this));
         this.app.get('/templates/:name', this.getTemplate.bind(this));
         this.app.post('/templates', this.createTemplate.bind(this));
         this.app.put('/templates/:name', this.updateTemplate.bind(this));
     }
 
+    // ---------------------------------------------------------------------
+    // Configuración de consumidores de eventos (fake)
+    // ---------------------------------------------------------------------
     setupEventConsumers() {
-        // Subscribe to appointment events
+        // Mantenemos suscripciones para mantener estructura original
         this.eventConsumer.subscribe('appointment.created', async (event) => {
             await this.handleAppointmentCreated(event);
         });
-        
+
         this.eventConsumer.subscribe('appointment.cancelled', async (event) => {
             await this.handleAppointmentCancelled(event);
         });
-        
+
         this.eventConsumer.subscribe('appointment.reminder', async (event) => {
             await this.handleAppointmentReminder(event);
         });
     }
 
-    // Route Handlers
-
+    // ---------------------------------------------------------------------
+    // Handlers — envío de notificaciones
+    // ---------------------------------------------------------------------
     async sendNotification(req, res, next) {
         try {
             const { channel, recipient, template, data, priority } = req.body;
-            
+
             if (!channel || !recipient) {
                 return res.status(400).json({
                     error: 'Channel and recipient are required'
                 });
             }
-            
+
             const notification = await this.notificationService.send({
                 channel,
                 recipient,
@@ -141,29 +245,30 @@ class NotificationServiceApp {
                 data,
                 priority: priority || 'normal'
             });
-            
+
             res.status(201).json({
                 success: true,
-                notification_id: notification.id,
-                status: notification.status
+                status: notification.status || 'sent',
+                detail: notification
             });
+
         } catch (error) {
             next(error);
         }
     }
 
-    async sendBulkNotifications(req, res, next) {
+        async sendBulkNotifications(req, res, next) {
         try {
             const { notifications } = req.body;
-            
+
             if (!notifications || !Array.isArray(notifications)) {
                 return res.status(400).json({
                     error: 'Notifications array is required'
                 });
             }
-            
+
             const results = await this.notificationService.sendBulk(notifications);
-            
+
             res.json({
                 success: true,
                 total: results.length,
@@ -171,6 +276,7 @@ class NotificationServiceApp {
                 failed: results.filter(r => r.status === 'failed').length,
                 results
             });
+
         } catch (error) {
             next(error);
         }
@@ -179,16 +285,17 @@ class NotificationServiceApp {
     async getNotificationStatus(req, res, next) {
         try {
             const { id } = req.params;
-            
+
             const notification = await this.notificationRepository.findById(id);
-            
+
             if (!notification) {
                 return res.status(404).json({
                     error: 'Notification not found'
                 });
             }
-            
+
             res.json(notification);
+
         } catch (error) {
             next(error);
         }
@@ -196,29 +303,30 @@ class NotificationServiceApp {
 
     async listNotifications(req, res, next) {
         try {
-            const { 
-                patient_id, 
-                appointment_id, 
-                channel, 
+            const {
+                patient_id,
+                appointment_id,
+                channel,
                 status,
-                page = 1, 
-                limit = 20 
+                page = 1,
+                limit = 20
             } = req.query;
-            
+
             const filters = {
                 patient_id,
                 appointment_id,
                 channel,
                 status
             };
-            
+
             const notifications = await this.notificationRepository.list(
                 filters,
                 parseInt(page),
                 parseInt(limit)
             );
-            
+
             res.json(notifications);
+
         } catch (error) {
             next(error);
         }
@@ -227,27 +335,28 @@ class NotificationServiceApp {
     async retryNotification(req, res, next) {
         try {
             const { id } = req.params;
-            
+
             const notification = await this.notificationRepository.findById(id);
-            
+
             if (!notification) {
                 return res.status(404).json({
                     error: 'Notification not found'
                 });
             }
-            
+
             if (notification.status !== 'failed') {
                 return res.status(400).json({
                     error: 'Only failed notifications can be retried'
                 });
             }
-            
+
             const result = await this.notificationService.retry(notification);
-            
+
             res.json({
                 success: true,
                 notification: result
             });
+
         } catch (error) {
             next(error);
         }
@@ -257,6 +366,7 @@ class NotificationServiceApp {
         try {
             const templates = this.templateService.listTemplates();
             res.json(templates);
+
         } catch (error) {
             next(error);
         }
@@ -266,14 +376,13 @@ class NotificationServiceApp {
         try {
             const { name } = req.params;
             const template = this.templateService.getTemplate(name);
-            
+
             if (!template) {
-                return res.status(404).json({
-                    error: 'Template not found'
-                });
+                return res.status(404).json({ error: 'Template not found' });
             }
-            
+
             res.json(template);
+
         } catch (error) {
             next(error);
         }
@@ -282,15 +391,16 @@ class NotificationServiceApp {
     async createTemplate(req, res, next) {
         try {
             const { name, subject, body, channels } = req.body;
-            
+
             const template = this.templateService.createTemplate({
                 name,
                 subject,
                 body,
                 channels
             });
-            
+
             res.status(201).json(template);
+
         } catch (error) {
             next(error);
         }
@@ -300,29 +410,27 @@ class NotificationServiceApp {
         try {
             const { name } = req.params;
             const updates = req.body;
-            
+
             const template = this.templateService.updateTemplate(name, updates);
-            
+
             if (!template) {
-                return res.status(404).json({
-                    error: 'Template not found'
-                });
+                return res.status(404).json({ error: 'Template not found' });
             }
-            
+
             res.json(template);
+
         } catch (error) {
             next(error);
         }
     }
-
-    // Event Handlers
-
+    // ---------------------------------------------------------------------
+    // Event handlers
+    // ---------------------------------------------------------------------
     async handleAppointmentCreated(event) {
         const { patient_id, appointment_date, appointment_time, doctor_id } = event.data;
-        
-        // Send confirmation notification
+
         await this.notificationService.send({
-            channel: 'telegram', // Or determine from patient preferences
+            channel: 'telegram',
             recipient: patient_id,
             template: 'appointment_confirmation',
             data: {
@@ -339,8 +447,7 @@ class NotificationServiceApp {
 
     async handleAppointmentCancelled(event) {
         const { patient_id, appointment_id, reason } = event.data;
-        
-        // Send cancellation notification
+
         await this.notificationService.send({
             channel: 'telegram',
             recipient: patient_id,
@@ -358,8 +465,7 @@ class NotificationServiceApp {
 
     async handleAppointmentReminder(event) {
         const { patient_id, appointment_id, appointment_date, appointment_time } = event.data;
-        
-        // Send reminder notification
+
         await this.notificationService.send({
             channel: 'telegram',
             recipient: patient_id,
@@ -378,25 +484,29 @@ class NotificationServiceApp {
         });
     }
 
+    // ---------------------------------------------------------------------
+    // Error handling
+    // ---------------------------------------------------------------------
     setupErrorHandling() {
         const errorHandler = new ErrorHandler();
         this.app.use(errorHandler.handle.bind(errorHandler));
     }
 
+    // ---------------------------------------------------------------------
+    // Start service
+    // ---------------------------------------------------------------------
     async start() {
         try {
-            // Connect to database
             await this.database.connect();
             this.logger.info('Database connected');
-            
-            // Start event consumer
+
             await this.eventConsumer.start();
             this.logger.info('Event consumer started');
-            
-            // Start server
+
             this.app.listen(this.port, () => {
                 this.logger.info(`Notification Service running on port ${this.port}`);
             });
+
         } catch (error) {
             this.logger.error('Failed to start service:', error);
             process.exit(1);
@@ -404,7 +514,9 @@ class NotificationServiceApp {
     }
 }
 
-// Start the service
+// -------------------------------------------------------------------------
+// Run service
+// -------------------------------------------------------------------------
 const service = new NotificationServiceApp();
 service.start();
 

@@ -1,0 +1,16 @@
+{
+  "name": "notification-service",
+  "version": "1.0.0",
+  "description": "Notification service for appointment system (email, SMS, Telegram, WhatsApp strategies)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.0",
+    "helmet": "^7.0.0",
+    "morgan": "^1.10.0"
+  }
+}

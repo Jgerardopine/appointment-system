@@ -1,0 +1,18 @@
+# Variables de entorno - NUNCA subir
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Docker
+postgres_data/
+n8n_data/
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store

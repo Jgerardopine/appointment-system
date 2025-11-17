@@ -11,7 +11,8 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const { AuthMiddleware } = require('./middleware/auth.middleware');
 const { RateLimiter } = require('./middleware/rate-limiter');
 const { ErrorHandler } = require('./middleware/error-handler');
-const { ServiceRegistry } = require('./services/service-registry');
+//const { ServiceRegistry } = require('./services/service-registry');
+const ServiceRegistry = require('./services/service-registry');
 const { HealthCheckService } = require('./services/health-check.service');
 const { Logger } = require('./utils/logger');
 

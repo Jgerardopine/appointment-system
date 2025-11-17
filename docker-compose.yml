@@ -36,7 +36,7 @@ services:
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:3003}
       JWT_SECRET: ${JWT_SECRET:-your_jwt_secret}
     ports:
-      - "3000:3000"
+      - "4000:3000"
     depends_on:
       - appointment-service
       - patient-service
