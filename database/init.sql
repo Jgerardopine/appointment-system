@@ -21,9 +21,14 @@ CREATE TABLE IF NOT EXISTS patients (
     date_of_birth DATE,
     address TEXT,
     medical_history JSONB DEFAULT '{}',
+    password VARCHAR(255),                              
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP WITH TIME ZONE                 
 );
+
+CREATE INDEX idx_patients_deleted_at ON patients(deleted_at);
+
 
 -- Table: Doctors
 -- Stores doctor information
@@ -48,6 +53,8 @@ CREATE TABLE IF NOT EXISTS appointments (
     doctor_id UUID NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
     appointment_date DATE NOT NULL,
     appointment_time TIME NOT NULL,
+    start_time TIME NOT NULL,         -- Start time of appointment
+    end_time TIME NOT NULL,           -- End time of appointment 
     duration_minutes INTEGER DEFAULT 30,
     status appointment_status DEFAULT 'scheduled',
     reason TEXT,

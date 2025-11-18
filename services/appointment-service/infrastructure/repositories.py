@@ -43,10 +43,10 @@ class PostgreSQLAppointmentRepository(IAppointmentRepository):
         query = """
             INSERT INTO appointments (
                 id, patient_id, doctor_id, 
-                appointment_date, start_time, end_time,
+                appointment_date, appointment_time, start_time, end_time,
                 status, reason, notes,
                 created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
         """
         
@@ -58,8 +58,9 @@ class PostgreSQLAppointmentRepository(IAppointmentRepository):
                     str(appointment.patient_id),
                     str(appointment.doctor_id),
                     appointment.appointment_date,
-                    appointment.time_slot.start_time,
-                    appointment.time_slot.end_time,
+                    appointment.time_slot.start_time,  # appointment_time (same as start_time)
+                    appointment.time_slot.start_time,  # start_time
+                    appointment.time_slot.end_time,    # end_time
                     appointment.status.value,
                     appointment.reason,
                     appointment.notes,
@@ -154,14 +155,15 @@ class PostgreSQLAppointmentRepository(IAppointmentRepository):
                 patient_id = $2,
                 doctor_id = $3,
                 appointment_date = $4,
-                start_time = $5,
-                end_time = $6,
-                status = $7,
-                reason = $8,
-                notes = $9,
-                updated_at = $10,
-                cancelled_at = $11,
-                cancellation_reason = $12
+                appointment_time = $5,
+                start_time = $6,
+                end_time = $7,
+                status = $8,
+                reason = $9,
+                notes = $10,
+                updated_at = $11,
+                cancelled_at = $12,
+                cancellation_reason = $13
             WHERE id = $1
             RETURNING *
         """
@@ -174,8 +176,9 @@ class PostgreSQLAppointmentRepository(IAppointmentRepository):
                     str(appointment.patient_id),
                     str(appointment.doctor_id),
                     appointment.appointment_date,
-                    appointment.time_slot.start_time,
-                    appointment.time_slot.end_time,
+                    appointment.time_slot.start_time,  # appointment_time
+                    appointment.time_slot.start_time,  # start_time
+                    appointment.time_slot.end_time,    # end_time
                     appointment.status.value,
                     appointment.reason,
                     appointment.notes,
@@ -286,9 +289,12 @@ class PostgreSQLAppointmentRepository(IAppointmentRepository):
             return None
         
         return Appointment(
-            id=AppointmentId(row['id']),
-            patient_id=PatientId(row['patient_id']),
-            doctor_id=DoctorId(row['doctor_id']),
+            #id=AppointmentId(row['id']),
+            #patient_id=PatientId(row['patient_id']),
+            #doctor_id=DoctorId(row['doctor_id']),
+            id=AppointmentId(str(row['id'])),      
+            patient_id=PatientId(str(row['patient_id'])),
+            doctor_id=DoctorId(str(row['doctor_id'])),  
             appointment_date=row['appointment_date'],
             time_slot=TimeSlot(
                 start_time=row['start_time'],

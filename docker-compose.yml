@@ -34,9 +34,11 @@ services:
       APPOINTMENT_SERVICE_URL: ${APPOINTMENT_SERVICE_URL:-http://appointment-service:3001}
       PATIENT_SERVICE_URL: ${PATIENT_SERVICE_URL:-http://patient-service:3002}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:3003}
-      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "4000:3000"
+    env_file:
+      - .env 
     depends_on:
       - appointment-service
       - patient-service
@@ -76,6 +78,8 @@ services:
       NODE_ENV: production
     ports:
       - "3002:3002"
+    env_file:
+      - .env 
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,6 +100,8 @@ services:
       NODE_ENV: production
     ports:
       - "3003:3003"
+    env_file:
+      - .env 
     depends_on:
       postgres:
         condition: service_healthy

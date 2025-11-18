@@ -43,7 +43,7 @@ class AvailabilityService:
             if appointment.status in [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED]:
                 if time_slot.overlaps_with(appointment.time_slot):
                     logger.info(
-                        f"Slot {time_slot.to_string()} overlaps with existing appointment"
+                        f"Slot  {time_slot.start_time}-{time_slot.end_time}  overlaps with existing appointment"
                     )
                     return False
         
@@ -167,7 +167,7 @@ class ValidationService:
                 logger.error(f"Missing required field: {field}")
                 return False
         
-        # Validate date format
+        '''# Validate date format
         try:
             date.fromisoformat(data['appointment_date'])
         except ValueError:
@@ -181,6 +181,31 @@ class ValidationService:
             logger.error(f"Invalid time format: {data['appointment_time']}")
             return False
         
+        return True
+        '''
+        # Validate date format
+        try:
+            appointment_date = data['appointment_date']
+            if isinstance(appointment_date, str):
+                date.fromisoformat(appointment_date)
+            elif not isinstance(appointment_date, date):
+                logger.error(f"Invalid date type: {type(appointment_date)}")
+                return False
+        except ValueError:
+            logger.error(f"Invalid date format: {data['appointment_date']}")
+            return False
+
+        # Validate time format
+        try:
+            appointment_time = data['appointment_time']
+            if isinstance(appointment_time, str):
+                time.fromisoformat(appointment_time)
+            elif not isinstance(appointment_time, time):
+                logger.error(f"Invalid time type: {type(appointment_time)}")
+                return False
+        except ValueError:
+            logger.error(f"Invalid time format: {data['appointment_time']}")
+            return False
         return True
     
     def validate_business_rules(self, appointment: Appointment) -> bool:

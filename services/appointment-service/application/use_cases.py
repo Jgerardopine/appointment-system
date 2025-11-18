@@ -142,9 +142,18 @@ class CreateAppointmentUseCase:
         appointment_id = AppointmentId("")  # Will auto-generate
         patient_id = PatientId(data['patient_id'])
         doctor_id = DoctorId(data['doctor_id'])
-        appointment_date = date.fromisoformat(data['appointment_date'])
+        #appointment_date = date.fromisoformat(data['appointment_date'])
         
-        start_time = time.fromisoformat(data['appointment_time'])
+        #start_time = time.fromisoformat(data['appointment_time'])
+        # Handle date - can be string or date object
+        appointment_date = data['appointment_date']
+        if isinstance(appointment_date, str):
+            appointment_date = date.fromisoformat(appointment_date)
+
+        # Handle time - can be string or time object
+        start_time = data['appointment_time']
+        if isinstance(start_time, str):
+            start_time = time.fromisoformat(start_time)
         duration = data.get('duration_minutes', 30)
         end_time = time(
             hour=(start_time.hour + duration // 60) % 24,
