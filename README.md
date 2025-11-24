@@ -96,7 +96,9 @@ docker-compose ps
 
 ## 📚 Documentación
 
+- **[🚀 Quick Start Guide](./QUICK_START.md)** - Empieza aquí para configurar todo en 5 minutos
+- **[🤖 Guía de N8N y Telegram](./docs/N8N_TELEGRAM_SETUP.md)** - Configuración completa del bot
 - [Guía de Instalación Detallada](./docs/INSTALLATION.md)
 - [Documento de Diseño](./docs/DESIGN.md)
 - [Guía de la API](./docs/API.md)
-- [Manual de N8N](./docs/N8N_SETUP.md)
+- [Correcciones del Workflow](./docs/WORKFLOW_FIXES.md) - Cambios realizados al template de N8N

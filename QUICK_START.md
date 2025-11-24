@@ -134,10 +134,50 @@ curl -X POST http://localhost:3000/api/auth/register \
 
 ### Test 3: Configurar N8N
 
-1. Acceder a http://localhost:5678
-2. Importar workflow desde: `/n8n/workflows/telegram-bot-complete.json`
-3. Configurar credenciales de Telegram
-4. Activar el workflow
+**📖 Guía Detallada**: Ver `docs/N8N_TELEGRAM_SETUP.md` para instrucciones completas
+
+**Pasos Rápidos:**
+
+1. **Acceder a N8N**:
+   ```
+   URL: http://localhost:5678
+   Usuario: admin
+   Contraseña: n8n_admin_123
+   ```
+
+2. **Importar Workflow**:
+   - Click en "+ New workflow"
+   - Menu (⋮) → "Import from file..."
+   - Seleccionar: `n8n/workflows/telegram-bot-complete.json`
+
+3. **Configurar Credenciales**:
+   - Click en nodo "Telegram Trigger"
+   - "Create New Credential"
+   - Pegar tu token de Telegram de BotFather
+   - Click "Create"
+   - Aplicar las mismas credenciales al nodo "Send Telegram Message"
+
+4. **Activar Workflow**:
+   - Click en "Save"
+   - Cambiar switch de "Inactive" a "Active"
+
+5. **Probar**:
+   - Abrir Telegram
+   - Buscar tu bot: `@tu_bot`
+   - Enviar: `/start`
+   - Deberías recibir el menú de bienvenida
+
+**🔍 Verificar Setup Completo**:
+```bash
+# Ejecutar script de verificación
+./scripts/verify-setup.sh
+```
+
+Este script verifica:
+- ✅ Todos los servicios corriendo
+- ✅ Puertos accesibles
+- ✅ APIs respondiendo
+- ✅ Configuración correcta
 
 ---
 
@@ -255,11 +295,27 @@ netstat -ano | findstr :3000  # Windows
 ```
 
 ### Problema: N8N no recibe mensajes
+
+**Causa Común**: Workflow no está activo o credenciales incorrectas
+
+**Solución**:
 ```bash
-# Configurar webhook manualmente
-curl -X POST https://api.telegram.org/bot<TOKEN>/setWebhook \
-  -d "url=http://tu-ip-publica:5678/webhook/telegram-bot-webhook"
+# 1. Verificar que N8N está corriendo
+docker-compose ps n8n
+
+# 2. Ver logs de N8n
+docker logs n8n -f
+
+# 3. En N8N UI:
+#    - Verificar que el workflow tiene switch en "Active" (verde)
+#    - Revisar "Executions" para ver errores
+#    - Verificar credenciales de Telegram
+
+# 4. Si el webhook no funciona, N8N lo configura automáticamente
+#    No necesitas configurarlo manualmente
 ```
+
+**📖 Ver guía completa de troubleshooting**: `docs/N8N_TELEGRAM_SETUP.md`
 
 ### Problema: Base de datos no conecta
 ```bash

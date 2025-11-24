@@ -1,31 +1,40 @@
 {
-  "name": "Telegram Bot - Sistema de Citas Médicas Completo",
+  "name": "Telegram Bot - Sistema de Citas Médicas",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "telegram-bot-webhook",
-        "responseMode": "responseNode",
-        "options": {
-          "responseNode": "Telegram Response"
-        }
+        "updates": [
+          "message"
+        ]
       },
-      "id": "telegram-webhook",
-      "name": "Telegram Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [250, 500],
-      "webhookId": "telegram-bot-main"
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        500
+      ],
+      "webhookId": "telegram-bot-main",
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_credentials",
+          "name": "Telegram Bot API"
+        }
+      }
     },
     {
       "parameters": {
-        "functionCode": "// Parse incoming Telegram message\nconst message = $input.first().json.message || $input.first().json.callback_query;\n\nif (!message) {\n  return {\n    error: 'No message found'\n  };\n}\n\nconst text = message.text || message.data || '';\nconst chatId = message.chat?.id || message.from?.id;\nconst userId = message.from?.id;\nconst username = message.from?.username;\nconst firstName = message.from?.first_name;\n\n// Parse command and parameters\nlet command = '';\nlet params = {};\n\nif (text.startsWith('/')) {\n  const parts = text.split(' ');\n  command = parts[0].substring(1);\n  \n  // Parse parameters based on command\n  if (command === 'agendar') {\n    // Example: /agendar Dr. López 2024-11-25 10:00\n    if (parts.length >= 4) {\n      params = {\n        doctor: parts.slice(1, -2).join(' '),\n        date: parts[parts.length - 2],\n        time: parts[parts.length - 1]\n      };\n    }\n  } else if (command === 'verificar' || command === 'cancelar') {\n    // Example: /verificar ABC123\n    params = {\n      appointmentId: parts[1]\n    };\n  }\n} else {\n  // Handle natural language\n  command = 'natural';\n  params = { text: text };\n}\n\nreturn {\n  command,\n  params,\n  chatId,\n  userId,\n  username,\n  firstName,\n  originalText: text,\n  timestamp: new Date().toISOString()\n};"
+        "jsCode": "// Parse incoming Telegram message\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const message = item.json.message;\n  \n  if (!message) {\n    continue;\n  }\n  \n  const text = message.text || '';\n  const chatId = message.chat?.id;\n  const userId = message.from?.id;\n  const username = message.from?.username;\n  const firstName = message.from?.first_name;\n  \n  // Parse command and parameters\n  let command = '';\n  let params = {};\n  \n  if (text.startsWith('/')) {\n    const parts = text.split(' ');\n    command = parts[0].substring(1);\n    \n    // Parse parameters based on command\n    if (command === 'agendar' && parts.length >= 4) {\n      params = {\n        doctor: parts.slice(1, -2).join(' '),\n        date: parts[parts.length - 2],\n        time: parts[parts.length - 1]\n      };\n    } else if (command === 'verificar' || command === 'cancelar') {\n      params = {\n        appointmentId: parts[1]\n      };\n    }\n  } else {\n    command = 'natural';\n    params = { text: text };\n  }\n  \n  results.push({\n    json: {\n      command,\n      params,\n      chatId,\n      userId,\n      username,\n      firstName,\n      originalText: text,\n      timestamp: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
       },
       "id": "parse-message",
       "name": "Parse Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 500]
+      "position": [
+        440,
+        500
+      ]
     },
     {
       "parameters": {
@@ -33,148 +42,202 @@
           "values": [
             {
               "conditions": {
-                "string": [
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
                   {
-                    "value1": "={{$json.command}}",
-                    "value2": "start"
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
-                ]
+                ],
+                "combinator": "and"
               },
+              "renameOutput": true,
               "outputKey": "start"
             },
             {
               "conditions": {
-                "string": [
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
                   {
-                    "value1": "={{$json.command}}",
-                    "value2": "agendar"
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "agendar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
-                ]
+                ],
+                "combinator": "and"
               },
+              "renameOutput": true,
               "outputKey": "agendar"
             },
             {
               "conditions": {
-                "string": [
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
                   {
-                    "value1": "={{$json.command}}",
-                    "value2": "verificar"
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "verificar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
-                ]
+                ],
+                "combinator": "and"
               },
+              "renameOutput": true,
               "outputKey": "verificar"
             },
             {
               "conditions": {
-                "string": [
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
                   {
-                    "value1": "={{$json.command}}",
-                    "value2": "cancelar"
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "cancelar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
-                ]
+                ],
+                "combinator": "and"
               },
+              "renameOutput": true,
               "outputKey": "cancelar"
             },
             {
               "conditions": {
-                "string": [
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
                   {
-                    "value1": "={{$json.command}}",
-                    "value2": "mis_citas"
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "mis_citas",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
-                ]
+                ],
+                "combinator": "and"
               },
+              "renameOutput": true,
               "outputKey": "mis_citas"
             },
             {
               "conditions": {
-                "string": [
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
                   {
-                    "value1": "={{$json.command}}",
-                    "value2": "ayuda"
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "ayuda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
-                ]
+                ],
+                "combinator": "and"
               },
+              "renameOutput": true,
               "outputKey": "ayuda"
             }
           ]
         },
-        "fallbackOutput": "fixed",
-        "options": {}
+        "options": {
+          "fallbackOutput": "extra"
+        }
       },
       "id": "command-router",
       "name": "Command Router",
       "type": "n8n-nodes-base.switch",
-      "typeVersion": 2,
-      "position": [650, 500]
+      "typeVersion": 3,
+      "position": [
+        640,
+        500
+      ]
     },
     {
       "parameters": {
-        "content": "## Welcome Message",
-        "height": 80,
-        "width": 150
-      },
-      "id": "note-start",
-      "name": "Start Flow",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [830, 200]
-    },
-    {
-      "parameters": {
-        "functionCode": "// Generate welcome message\nconst firstName = $input.first().json.firstName || 'Usuario';\n\nconst welcomeMessage = `🏥 ¡Hola ${firstName}! Bienvenido al Sistema de Citas Médicas\n\nPuedo ayudarte con:\n\n📅 /agendar - Agendar nueva cita\n🔍 /verificar - Verificar estado de cita\n❌ /cancelar - Cancelar cita existente\n📋 /mis_citas - Ver todas tus citas\n❓ /ayuda - Ver este menú de ayuda\n\n¿Cómo puedo ayudarte hoy?`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Agendar Cita', callback_data: '/agendar' },\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' }\n    ],\n    [\n      { text: '❓ Ayuda', callback_data: '/ayuda' }\n    ]\n  ]\n};\n\nreturn {\n  chatId: $input.first().json.chatId,\n  message: welcomeMessage,\n  keyboard: keyboard\n};"
+        "jsCode": "// Generate welcome message\nconst firstName = $input.first().json.firstName || 'Usuario';\n\nconst welcomeMessage = `🏥 ¡Hola ${firstName}! Bienvenido al Sistema de Citas Médicas\n\nPuedo ayudarte con:\n\n📅 /agendar - Agendar nueva cita\n🔍 /verificar - Verificar estado de cita\n❌ /cancelar - Cancelar cita existente\n📋 /mis_citas - Ver todas tus citas\n❓ /ayuda - Ver este menú de ayuda\n\n¿Cómo puedo ayudarte hoy?`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Agendar Cita', callback_data: '/agendar' },\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' }\n    ],\n    [\n      { text: '❓ Ayuda', callback_data: '/ayuda' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: $input.first().json.chatId,\n    message: welcomeMessage,\n    keyboard: keyboard\n  }\n}];"
       },
       "id": "format-welcome",
       "name": "Format Welcome",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 280]
+      "position": [
+        840,
+        280
+      ]
     },
     {
       "parameters": {
-        "content": "## Create Appointment",
-        "height": 80,
-        "width": 150
-      },
-      "id": "note-agendar",
-      "name": "Appointment Flow",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [830, 350]
-    },
-    {
-      "parameters": {
-        "functionCode": "// Validate appointment parameters\nconst params = $input.first().json.params;\n\nif (!params.doctor || !params.date || !params.time) {\n  return {\n    valid: false,\n    chatId: $input.first().json.chatId,\n    message: '❌ Formato incorrecto\\n\\nUsa: /agendar [Doctor] [Fecha] [Hora]\\n\\nEjemplo:\\n/agendar Dr. López 2024-11-25 10:00'\n  };\n}\n\n// Parse and validate date\nconst appointmentDate = new Date(params.date);\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nif (appointmentDate < today) {\n  return {\n    valid: false,\n    chatId: $input.first().json.chatId,\n    message: '❌ No puedes agendar citas en fechas pasadas'\n  };\n}\n\n// Validate time format\nconst timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;\nif (!timeRegex.test(params.time)) {\n  return {\n    valid: false,\n    chatId: $input.first().json.chatId,\n    message: '❌ Formato de hora inválido. Usa formato HH:MM (ej: 10:00)'\n  };\n}\n\nreturn {\n  valid: true,\n  chatId: $input.first().json.chatId,\n  userId: $input.first().json.userId,\n  appointment: {\n    patient_id: $input.first().json.userId.toString(),\n    doctor_id: 'doc_' + params.doctor.toLowerCase().replace(/[^a-z0-9]/g, ''),\n    appointment_date: params.date,\n    appointment_time: params.time + ':00',\n    duration_minutes: 30,\n    reason: 'Consulta general'\n  }\n};"
+        "jsCode": "// Validate appointment parameters\nconst params = $input.first().json.params;\nconst chatId = $input.first().json.chatId;\nconst userId = $input.first().json.userId;\n\nif (!params.doctor || !params.date || !params.time) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ Formato incorrecto\\n\\nUsa: /agendar [Doctor] [Fecha] [Hora]\\n\\nEjemplo:\\n/agendar Dr. López 2024-11-25 10:00'\n    }\n  }];\n}\n\n// Parse and validate date\nconst appointmentDate = new Date(params.date);\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nif (appointmentDate < today) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ No puedes agendar citas en fechas pasadas'\n    }\n  }];\n}\n\n// Validate time format\nconst timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;\nif (!timeRegex.test(params.time)) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ Formato de hora inválido. Usa formato HH:MM (ej: 10:00)'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    userId: userId,\n    appointment: {\n      patient_id: userId.toString(),\n      doctor_id: 'doc_' + params.doctor.toLowerCase().replace(/[^a-z0-9]/g, ''),\n      appointment_date: params.date,\n      appointment_time: params.time + ':00',\n      duration_minutes: 30,\n      reason: 'Consulta general'\n    }\n  }\n}];"
       },
       "id": "validate-appointment",
       "name": "Validate Appointment",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 430]
+      "position": [
+        840,
+        420
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{$json.valid}}",
-              "value2": true
+              "id": "check-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "check-valid",
+      "id": "is-valid",
       "name": "Is Valid?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1050, 430]
+      "typeVersion": 2,
+      "position": [
+        1040,
+        420
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "http://api-gateway:3000/api/appointments",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -185,203 +248,193 @@
           ]
         },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "patient_id",
-              "value": "={{$json.appointment.patient_id}}"
-            },
-            {
-              "name": "doctor_id",
-              "value": "={{$json.appointment.doctor_id}}"
-            },
-            {
-              "name": "appointment_date",
-              "value": "={{$json.appointment.appointment_date}}"
-            },
-            {
-              "name": "appointment_time",
-              "value": "={{$json.appointment.appointment_time}}"
-            },
-            {
-              "name": "duration_minutes",
-              "value": "={{$json.appointment.duration_minutes}}"
-            },
-            {
-              "name": "reason",
-              "value": "={{$json.appointment.reason}}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 10000
-        }
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"patient_id\": \"{{ $json.appointment.patient_id }}\",\n  \"doctor_id\": \"{{ $json.appointment.doctor_id }}\",\n  \"appointment_date\": \"{{ $json.appointment.appointment_date }}\",\n  \"appointment_time\": \"{{ $json.appointment.appointment_time }}\",\n  \"duration_minutes\": {{ $json.appointment.duration_minutes }},\n  \"reason\": \"{{ $json.appointment.reason }}\"\n}",
+        "options": {}
       },
       "id": "create-appointment-api",
       "name": "Create Appointment API",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [1250, 380],
-      "continueOnFail": true
+      "typeVersion": 4.2,
+      "position": [
+        1240,
+        360
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "functionCode": "// Format success or error message\nconst response = $input.first().json;\nconst chatId = $input.all()[0].json.chatId;\n\nif (response.error || !response.id) {\n  // Error occurred\n  return {\n    chatId: chatId,\n    message: `❌ Error al crear la cita\\n\\n${response.error || 'Error desconocido'}\\n\\nPor favor intenta nuevamente o contacta soporte.`,\n    success: false\n  };\n}\n\n// Success - format confirmation\nconst appointment = response;\nconst date = new Date(appointment.appointment_date);\nconst dateStr = date.toLocaleDateString('es-MX', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric'\n});\n\nconst successMessage = `✅ ¡Cita Agendada Exitosamente!\n\n📋 **Detalles de tu cita:**\n🆔 ID: ${appointment.id}\n👨‍⚕️ Doctor: ${appointment.doctor_id}\n📅 Fecha: ${dateStr}\n⏰ Hora: ${appointment.start_time}\n⏱ Duración: ${appointment.duration_minutes} minutos\n\n📌 Estado: ${appointment.status}\n\n💡 Te enviaremos un recordatorio 24 horas antes de tu cita.\n\n¿Necesitas algo más?`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📋 Ver Mis Citas', callback_data: '/mis_citas' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn {\n  chatId: chatId,\n  message: successMessage,\n  keyboard: keyboard,\n  success: true\n};"
+        "jsCode": "// Format success or error message\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error || !response.id) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al crear la cita\\n\\n${response.error || response.message || 'Error desconocido'}\\n\\nPor favor intenta nuevamente.`,\n      success: false\n    }\n  }];\n}\n\n// Success\nconst appointment = response;\nconst date = new Date(appointment.appointment_date);\nconst dateStr = date.toLocaleDateString('es-MX', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric'\n});\n\nconst successMessage = `✅ ¡Cita Agendada Exitosamente!\\n\\n📋 **Detalles de tu cita:**\\n🆔 ID: ${appointment.id}\\n👨‍⚕️ Doctor: ${appointment.doctor_id}\\n📅 Fecha: ${dateStr}\\n⏰ Hora: ${appointment.start_time || appointment.appointment_time}\\n⏱ Duración: ${appointment.duration_minutes} minutos\\n\\n📌 Estado: ${appointment.status}\\n\\n💡 Te enviaremos un recordatorio 24 horas antes de tu cita.`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📋 Ver Mis Citas', callback_data: '/mis_citas' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: successMessage,\n    keyboard: keyboard,\n    success: true\n  }\n}];"
       },
       "id": "format-appointment-response",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1450, 380]
+      "position": [
+        1440,
+        360
+      ]
     },
     {
       "parameters": {
-        "content": "## Verify Appointment",
-        "height": 80,
-        "width": 150
-      },
-      "id": "note-verificar",
-      "name": "Verify Flow",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [830, 500]
-    },
-    {
-      "parameters": {
-        "functionCode": "// Validate verification parameters\nconst params = $input.first().json.params;\n\nif (!params.appointmentId) {\n  return {\n    valid: false,\n    chatId: $input.first().json.chatId,\n    message: '❌ Por favor proporciona el ID de la cita\\n\\nUsa: /verificar [ID_CITA]\\n\\nEjemplo:\\n/verificar ABC123'\n  };\n}\n\nreturn {\n  valid: true,\n  chatId: $input.first().json.chatId,\n  appointmentId: params.appointmentId\n};"
+        "jsCode": "// Validate verification parameters\nconst params = $input.first().json.params;\nconst chatId = $input.first().json.chatId;\n\nif (!params.appointmentId) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ Por favor proporciona el ID de la cita\\n\\nUsa: /verificar [ID_CITA]\\n\\nEjemplo:\\n/verificar 1'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    appointmentId: params.appointmentId\n  }\n}];"
       },
       "id": "validate-verify",
       "name": "Validate Verify",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 580]
+      "position": [
+        840,
+        560
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://api-gateway:3000/api/appointments/{{$json.appointmentId}}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {
-          "timeout": 10000
-        }
+        "url": "=http://api-gateway:3000/api/appointments/{{ $json.appointmentId }}",
+        "options": {}
       },
       "id": "get-appointment-api",
       "name": "Get Appointment API",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [1050, 580],
-      "continueOnFail": true
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        560
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "functionCode": "// Format verification response\nconst response = $input.first().json;\nconst chatId = $input.all()[0].json.chatId;\n\nif (response.error || !response.id) {\n  return {\n    chatId: chatId,\n    message: `❌ No se encontró la cita con ese ID\\n\\nVerifica el ID e intenta nuevamente.`\n  };\n}\n\nconst appointment = response;\nconst date = new Date(appointment.appointment_date);\nconst dateStr = date.toLocaleDateString('es-MX', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric'\n});\n\nlet statusEmoji = '📅';\nswitch(appointment.status) {\n  case 'confirmed': statusEmoji = '✅'; break;\n  case 'cancelled': statusEmoji = '❌'; break;\n  case 'completed': statusEmoji = '✔️'; break;\n  case 'no_show': statusEmoji = '⚠️'; break;\n}\n\nconst message = `📋 **Información de tu Cita**\n\n🆔 ID: ${appointment.id}\n${statusEmoji} Estado: ${appointment.status}\n👨‍⚕️ Doctor: ${appointment.doctor_id}\n📅 Fecha: ${dateStr}\n⏰ Hora: ${appointment.start_time}\n⏱ Duración: ${appointment.duration_minutes} minutos\n\n${appointment.notes ? `📝 Notas: ${appointment.notes}` : ''}\n${appointment.cancellation_reason ? `❌ Razón de cancelación: ${appointment.cancellation_reason}` : ''}`;\n\nconst keyboard = appointment.status === 'scheduled' ? {\n  inline_keyboard: [\n    [\n      { text: '✅ Confirmar', callback_data: `/confirmar ${appointment.id}` },\n      { text: '❌ Cancelar', callback_data: `/cancelar ${appointment.id}` }\n    ],\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n} : {\n  inline_keyboard: [\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn {\n  chatId: chatId,\n  message: message,\n  keyboard: keyboard\n};"
+        "jsCode": "// Format verification response\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error || !response.id) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ No se encontró la cita con ese ID\\n\\nVerifica el ID e intenta nuevamente.`\n    }\n  }];\n}\n\nconst appointment = response;\nconst date = new Date(appointment.appointment_date);\nconst dateStr = date.toLocaleDateString('es-MX', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric'\n});\n\nlet statusEmoji = '📅';\nswitch(appointment.status) {\n  case 'confirmed': statusEmoji = '✅'; break;\n  case 'cancelled': statusEmoji = '❌'; break;\n  case 'completed': statusEmoji = '✔️'; break;\n  case 'no_show': statusEmoji = '⚠️'; break;\n}\n\nconst message = `📋 **Información de tu Cita**\\n\\n🆔 ID: ${appointment.id}\\n${statusEmoji} Estado: ${appointment.status}\\n👨‍⚕️ Doctor: ${appointment.doctor_id}\\n📅 Fecha: ${dateStr}\\n⏰ Hora: ${appointment.start_time || appointment.appointment_time}\\n⏱ Duración: ${appointment.duration_minutes} minutos\\n\\n${appointment.notes ? `📝 Notas: ${appointment.notes}` : ''}\\n${appointment.cancellation_reason ? `❌ Razón de cancelación: ${appointment.cancellation_reason}` : ''}`;\n\nconst keyboard = appointment.status === 'scheduled' ? {\n  inline_keyboard: [\n    [\n      { text: '✅ Confirmar', callback_data: `/confirmar ${appointment.id}` },\n      { text: '❌ Cancelar', callback_data: `/cancelar ${appointment.id}` }\n    ],\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n} : {\n  inline_keyboard: [\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
       },
       "id": "format-verify-response",
       "name": "Format Verify Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 580]
+      "position": [
+        1240,
+        560
+      ]
     },
     {
       "parameters": {
-        "content": "## List Appointments",
-        "height": 80,
-        "width": 150
+        "jsCode": "// Validate cancellation parameters\nconst params = $input.first().json.params;\nconst chatId = $input.first().json.chatId;\n\nif (!params.appointmentId) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ Por favor proporciona el ID de la cita\\n\\nUsa: /cancelar [ID_CITA]\\n\\nEjemplo:\\n/cancelar 1'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    appointmentId: params.appointmentId\n  }\n}];"
       },
-      "id": "note-mis-citas",
-      "name": "List Flow",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [830, 700]
+      "id": "validate-cancel",
+      "name": "Validate Cancel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://api-gateway:3000/api/appointments/{{ $json.appointmentId }}",
+        "options": {}
+      },
+      "id": "cancel-appointment-api",
+      "name": "Cancel Appointment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        700
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format cancellation response\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al cancelar la cita\\n\\n${response.message || 'Error desconocido'}\\n\\nPor favor intenta nuevamente.`\n    }\n  }];\n}\n\nconst message = `✅ Cita cancelada exitosamente\\n\\n🆔 ID: ${previousData.appointmentId}\\n\\nPuedes agendar una nueva cita cuando lo necesites.`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Agendar Nueva Cita', callback_data: '/agendar' },\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' }\n    ],\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-cancel-response",
+      "name": "Format Cancel Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        700
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://api-gateway:3000/api/appointments?patient_id={{$json.userId}}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {
-          "timeout": 10000
-        }
+        "url": "=http://api-gateway:3000/api/appointments?patient_id={{ $json.userId }}",
+        "options": {}
       },
       "id": "list-appointments-api",
       "name": "List Appointments API",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [850, 780],
-      "continueOnFail": true
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        840
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "functionCode": "// Format appointments list\nconst response = $input.first().json;\nconst chatId = $input.all()[0].json.chatId;\n\nif (response.error || !response.appointments) {\n  return {\n    chatId: chatId,\n    message: `❌ Error al obtener tus citas\\n\\nIntenta nuevamente más tarde.`\n  };\n}\n\nconst appointments = response.appointments || [];\n\nif (appointments.length === 0) {\n  return {\n    chatId: chatId,\n    message: `📋 No tienes citas registradas\\n\\n¿Quieres agendar una nueva cita?`,\n    keyboard: {\n      inline_keyboard: [\n        [\n          { text: '📅 Agendar Cita', callback_data: '/agendar' },\n          { text: '🏠 Menú Principal', callback_data: '/start' }\n        ]\n      ]\n    }\n  };\n}\n\n// Format appointments list\nlet message = `📋 **Tus Citas (${appointments.length})**\\n\\n`;\n\nappointments.forEach((apt, index) => {\n  const date = new Date(apt.appointment_date);\n  const dateStr = date.toLocaleDateString('es-MX', {\n    weekday: 'short',\n    month: 'short',\n    day: 'numeric'\n  });\n  \n  let statusEmoji = '📅';\n  switch(apt.status) {\n    case 'confirmed': statusEmoji = '✅'; break;\n    case 'cancelled': statusEmoji = '❌'; break;\n    case 'completed': statusEmoji = '✔️'; break;\n  }\n  \n  message += `${index + 1}. ${statusEmoji} **${dateStr}** - ${apt.start_time}\\n`;\n  message += `   👨‍⚕️ ${apt.doctor_id}\\n`;\n  message += `   🆔 ID: ${apt.id}\\n\\n`;\n});\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Nueva Cita', callback_data: '/agendar' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn {\n  chatId: chatId,\n  message: message,\n  keyboard: keyboard\n};"
+        "jsCode": "// Format appointments list\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al obtener tus citas\\n\\nIntenta nuevamente más tarde.`\n    }\n  }];\n}\n\nconst appointments = response.appointments || response || [];\n\nif (!Array.isArray(appointments) || appointments.length === 0) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `📋 No tienes citas registradas\\n\\n¿Quieres agendar una nueva cita?`,\n      keyboard: {\n        inline_keyboard: [\n          [\n            { text: '📅 Agendar Cita', callback_data: '/agendar' },\n            { text: '🏠 Menú Principal', callback_data: '/start' }\n          ]\n        ]\n      }\n    }\n  }];\n}\n\nlet message = `📋 **Tus Citas (${appointments.length})**\\n\\n`;\n\nappointments.forEach((apt, index) => {\n  const date = new Date(apt.appointment_date);\n  const dateStr = date.toLocaleDateString('es-MX', {\n    weekday: 'short',\n    month: 'short',\n    day: 'numeric'\n  });\n  \n  let statusEmoji = '📅';\n  switch(apt.status) {\n    case 'confirmed': statusEmoji = '✅'; break;\n    case 'cancelled': statusEmoji = '❌'; break;\n    case 'completed': statusEmoji = '✔️'; break;\n  }\n  \n  message += `${index + 1}. ${statusEmoji} **${dateStr}** - ${apt.start_time || apt.appointment_time}\\n`;\n  message += `   👨‍⚕️ ${apt.doctor_id}\\n`;\n  message += `   🆔 ID: ${apt.id}\\n\\n`;\n});\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Nueva Cita', callback_data: '/agendar' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
       },
       "id": "format-list-response",
       "name": "Format List Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 780]
+      "position": [
+        1040,
+        840
+      ]
     },
     {
       "parameters": {
-        "content": "## Help Message",
-        "height": 80,
-        "width": 150
-      },
-      "id": "note-ayuda",
-      "name": "Help Flow",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [830, 900]
-    },
-    {
-      "parameters": {
-        "functionCode": "// Generate help message\nconst chatId = $input.first().json.chatId;\n\nconst helpMessage = `❓ **Ayuda - Sistema de Citas Médicas**\n\n**Comandos Disponibles:**\n\n📅 **/agendar** [Doctor] [Fecha] [Hora]\nAgenda una nueva cita médica\nEjemplo: /agendar Dr. López 2024-11-25 10:00\n\n🔍 **/verificar** [ID_Cita]\nVerifica el estado de una cita específica\nEjemplo: /verificar ABC123\n\n❌ **/cancelar** [ID_Cita]\nCancela una cita existente\nEjemplo: /cancelar ABC123\n\n📋 **/mis_citas**\nMuestra todas tus citas programadas\n\n🏥 **/doctores**\nMuestra la lista de doctores disponibles\n\n**Formatos Aceptados:**\n• Fecha: AAAA-MM-DD (ej: 2024-11-25)\n• Hora: HH:MM (ej: 10:00, 14:30)\n• Horario: 8:00 AM - 6:00 PM\n• Días: Lunes a Viernes\n\n**Tips:**\n• Las citas duran 30 minutos por defecto\n• No se pueden agendar citas en el pasado\n• Recibirás recordatorios 24h antes\n• Puedes cancelar hasta 2h antes\n\n¿Necesitas más ayuda? Contacta soporte: @soporte_citas`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Agendar Cita', callback_data: '/agendar' },\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' }\n    ],\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn {\n  chatId: chatId,\n  message: helpMessage,\n  keyboard: keyboard\n};"
+        "jsCode": "// Generate help message\nconst chatId = $input.first().json.chatId;\n\nconst helpMessage = `❓ **Ayuda - Sistema de Citas Médicas**\\n\\n**Comandos Disponibles:**\\n\\n📅 **/agendar** [Doctor] [Fecha] [Hora]\\nAgenda una nueva cita médica\\nEjemplo: /agendar Dr. López 2024-11-25 10:00\\n\\n🔍 **/verificar** [ID_Cita]\\nVerifica el estado de una cita específica\\nEjemplo: /verificar 1\\n\\n❌ **/cancelar** [ID_Cita]\\nCancela una cita existente\\nEjemplo: /cancelar 1\\n\\n📋 **/mis_citas**\\nMuestra todas tus citas programadas\\n\\n**Formatos Aceptados:**\\n• Fecha: AAAA-MM-DD (ej: 2024-11-25)\\n• Hora: HH:MM (ej: 10:00, 14:30)\\n• Horario: 8:00 AM - 6:00 PM\\n• Días: Lunes a Viernes\\n\\n**Tips:**\\n• Las citas duran 30 minutos por defecto\\n• No se pueden agendar citas en el pasado\\n• Recibirás recordatorios 24h antes\\n\\n¿Necesitas más ayuda? Contacta soporte`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Agendar Cita', callback_data: '/agendar' },\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' }\n    ],\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: helpMessage,\n    keyboard: keyboard\n  }\n}];"
       },
       "id": "format-help",
       "name": "Format Help",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 980]
-    },
-    {
-      "parameters": {
-        "content": "## Send to Telegram",
-        "height": 80,
-        "width": 150
-      },
-      "id": "note-send",
-      "name": "Response",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [1630, 500]
+      "position": [
+        840,
+        980
+      ]
     },
     {
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
-        "chatId": "={{$json.chatId}}",
-        "text": "={{$json.message}}",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
         "additionalFields": {
           "parse_mode": "Markdown",
-          "reply_markup": "={{JSON.stringify($json.keyboard)}}"
+          "reply_markup": "={{ JSON.stringify($json.keyboard || {}) }}"
         }
       },
-      "id": "telegram-response",
-      "name": "Telegram Response",
+      "id": "telegram-send",
+      "name": "Send Telegram Message",
       "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1650, 580],
+      "typeVersion": 1.2,
+      "position": [
+        1640,
+        580
+      ],
       "credentials": {
         "telegramApi": {
-          "id": "1",
-          "name": "Telegram Bot"
+          "id": "telegram_credentials",
+          "name": "Telegram Bot API"
         }
       }
     }
   ],
+  "pinData": {},
   "connections": {
-    "Telegram Webhook": {
+    "Telegram Trigger": {
       "main": [
         [
           {
@@ -426,7 +479,13 @@
             "index": 0
           }
         ],
-        [],
+        [
+          {
+            "node": "Validate Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "List Appointments API",
@@ -454,7 +513,7 @@
       "main": [
         [
           {
-            "node": "Telegram Response",
+            "node": "Send Telegram Message",
             "type": "main",
             "index": 0
           }
@@ -483,7 +542,7 @@
         ],
         [
           {
-            "node": "Telegram Response",
+            "node": "Send Telegram Message",
             "type": "main",
             "index": 0
           }
@@ -505,7 +564,7 @@
       "main": [
         [
           {
-            "node": "Telegram Response",
+            "node": "Send Telegram Message",
             "type": "main",
             "index": 0
           }
@@ -538,7 +597,40 @@
       "main": [
         [
           {
-            "node": "Telegram Response",
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Cancel": {
+      "main": [
+        [
+          {
+            "node": "Cancel Appointment API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel Appointment API": {
+      "main": [
+        [
+          {
+            "node": "Format Cancel Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Cancel Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
             "type": "main",
             "index": 0
           }
@@ -560,7 +652,7 @@
       "main": [
         [
           {
-            "node": "Telegram Response",
+            "node": "Send Telegram Message",
             "type": "main",
             "index": 0
           }
@@ -571,7 +663,7 @@
       "main": [
         [
           {
-            "node": "Telegram Response",
+            "node": "Send Telegram Message",
             "type": "main",
             "index": 0
           }
@@ -579,24 +671,15 @@
       ]
     }
   },
+  "active": false,
   "settings": {
-    "executionOrder": "v1",
-    "saveManualExecutions": true,
-    "errorWorkflow": "error-handler"
+    "executionOrder": "v1"
   },
-  "staticData": null,
+  "versionId": "1",
   "meta": {
-    "templateCreatedBy": "Sistema de Citas",
-    "templateId": "telegram-appointment-bot"
+    "templateCreatedBy": "Sistema de Citas Médicas",
+    "instanceId": "appointment-system"
   },
-  "tags": [
-    {
-      "name": "telegram",
-      "createdAt": "2024-11-17T10:00:00.000Z"
-    },
-    {
-      "name": "appointments",
-      "createdAt": "2024-11-17T10:00:00.000Z"
-    }
-  ]
+  "id": "telegram-appointment-bot",
+  "tags": []
 }
