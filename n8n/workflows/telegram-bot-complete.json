@@ -297,7 +297,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://api-gateway:3000/api/appointments",
+        "url": "http://appointment-service:3001/appointments",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -352,7 +352,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://api-gateway:3000/api/appointments/{{ $json.appointmentId }}",
+        "url": "http://appointment-service:3001/appointments/{{ $json.appointmentId }}",
         "options": {}
       },
       "id": "get-appointment-api",
@@ -395,7 +395,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=http://api-gateway:3000/api/appointments/{{ $json.appointmentId }}",
+        "url": "http://appointment-service:3001/appointments/{{ $json.appointmentId }}",
         "options": {}
       },
       "id": "cancel-appointment-api",
@@ -425,7 +425,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://api-gateway:3000/api/appointments?patient_id={{ $json.userId }}",
+        "url": "http://appointment-service:3001/appointments?patient_id={{ $json.userId }}",
         "options": {}
       },
       "id": "list-appointments-api",
@@ -507,7 +507,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://api-gateway:3000/api/appointments/doctors{{ $json.specialty ? '?specialty=' + $json.specialty : '' }}",
+        "url": "http://appointment-service:3001/doctors",
         "options": {}
       },
       "id": "list-doctores-api",
@@ -550,7 +550,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://api-gateway:3000/api/appointments/appointments/availability/{{ $json.doctorId }}?date={{ $json.date }}&duration_minutes=30",
+        "url": "=http://appointment-service:3001/appointments/availability/{{ $json.doctorId }}?date={{ $json.date }}&duration_minutes=30",
         "options": {}
       },
       "id": "check-availability-api",
@@ -593,7 +593,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://api-gateway:3000/api/appointments/appointments/{{ $json.appointmentId }}/confirm",
+        "url": "http://appointment-service:3001/appointments/{{ $json.appointmentId }}/confirm",
         "options": {}
       },
       "id": "confirm-appointment-api",
