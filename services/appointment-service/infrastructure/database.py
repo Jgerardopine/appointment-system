@@ -82,3 +82,21 @@ class Database:
         """
         async with self.acquire() as connection:
             return await connection.fetchval(query, *args)
+    
+    async def fetch_all(self, query: str, args: list = None):
+        """
+        Fetch all rows (alias for compatibility)
+        """
+        if args is None:
+            args = []
+        async with self.acquire() as connection:
+            return await connection.fetch(query, *args)
+    
+    async def fetch_one(self, query: str, args: list = None):
+        """
+        Fetch one row (alias for compatibility)
+        """
+        if args is None:
+            args = []
+        async with self.acquire() as connection:
+            return await connection.fetchrow(query, *args)
