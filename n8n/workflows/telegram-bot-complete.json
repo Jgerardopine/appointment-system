@@ -691,13 +691,6 @@
         ],
         [
           {
-            "node": "Format Help",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
             "node": "Validate Doctores",
             "type": "main",
             "index": 0
