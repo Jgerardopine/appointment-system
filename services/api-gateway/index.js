@@ -85,7 +85,7 @@ class APIGateway {
             createProxyMiddleware({
                 target: process.env.APPOINTMENT_SERVICE_URL || 'http://appointment-service:3001',
                 changeOrigin: true,
-                pathRewrite: { '^/api/appointments': '/appointments' },
+                pathRewrite: { '^/api/appointments': '' },
                 onError: this.handleProxyError.bind(this)
             })
         );

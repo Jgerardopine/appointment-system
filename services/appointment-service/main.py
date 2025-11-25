@@ -193,7 +193,7 @@ async def list_doctors(
         params.extend([page_size, offset])
         
         # Execute query
-        result = await di_container.database.fetch_all(query, params)
+        result = await di_container.database.fetch(query, *params)
         
         # Get total count
         count_query = """
@@ -211,7 +211,7 @@ async def list_doctors(
             count_query += f" AND d.available_days @> ${param_idx}::jsonb"
             count_params.append(f'["{day_name}"]')
         
-        count_result = await di_container.database.fetch_one(count_query, count_params)
+        count_result = await di_container.database.fetchrow(count_query, *count_params)
         total = count_result["total"]
         
         return {
@@ -257,7 +257,7 @@ async def get_doctor(doctor_id: str):
             GROUP BY d.id
         """
         
-        result = await di_container.database.fetch_one(query, [doctor_id])
+        result = await di_container.database.fetchrow(query, doctor_id)
         
         if not result:
             raise HTTPException(status_code=404, detail="Doctor not found")
@@ -272,7 +272,7 @@ async def get_doctor(doctor_id: str):
                 AND appointment_date >= CURRENT_DATE
                 AND status IN ('scheduled', 'confirmed')
         """
-        upcoming_result = await di_container.database.fetch_one(upcoming_query, [doctor_id])
+        upcoming_result = await di_container.database.fetchrow(upcoming_query, doctor_id)
         doctor_data["upcoming_appointments"] = upcoming_result["upcoming_count"]
         
         # Get available time slots for next 7 days
@@ -315,9 +315,9 @@ async def get_doctor_statistics(doctor_id: str):
     """
     try:
         # Verify doctor exists
-        doctor_check = await di_container.database.fetch_one(
+        doctor_check = await di_container.database.fetchrow(
             "SELECT id FROM doctors WHERE id = $1",
-            [doctor_id]
+            doctor_id
         )
         
         if not doctor_check:
@@ -338,7 +338,7 @@ async def get_doctor_statistics(doctor_id: str):
             WHERE doctor_id = $1
         """
         
-        stats = await di_container.database.fetch_one(stats_query, [doctor_id])
+        stats = await di_container.database.fetchrow(stats_query, doctor_id)
         
         # Calculate rates
         total = stats["total_appointments"] or 1  # Avoid division by zero
@@ -367,39 +367,6 @@ async def get_doctor_statistics(doctor_id: str):
 # ============================================================================
 # RUTAS CON PATHS ESPECÍFICOS PRIMERO (para evitar conflictos)
 # ============================================================================
-
-@app.get("/appointments/availability/{doctor_id}")
-async def check_availability(
-    doctor_id: str,
-    date: date,
-    duration_minutes: int = 30
-):
-    """
-    Check available time slots for a doctor on a specific date
-    Demonstrates: Domain service usage
-    ⚠️ ESTA RUTA DEBE ESTAR ANTES DE /appointments/{appointment_id}
-    """
-    try:
-        available_slots = await di_container.availability_service.get_available_slots(
-            doctor_id=doctor_id,
-            date=date,
-            duration_minutes=duration_minutes
-        )
-        
-        return {
-            "doctor_id": doctor_id,
-            "date": date.isoformat(),
-            "available_slots": [
-                {
-                    "start_time": slot.start_time.isoformat(),
-                    "end_time": slot.end_time.isoformat()
-                }
-                for slot in available_slots
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Error checking availability: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 # ============================================================================
 # RUTAS CRUD NORMALES
@@ -464,6 +431,39 @@ async def list_appointments(
         )
     except Exception as e:
         logger.error(f"Error listing appointments: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/appointments/availability/{doctor_id}")
+async def check_availability(
+    doctor_id: str,
+    date: date,
+    duration_minutes: int = 30
+):
+    """
+    Check available time slots for a doctor on a specific date
+    Demonstrates: Domain service usage
+    ⚠️ ESTA RUTA DEBE ESTAR ANTES DE /appointments/{appointment_id}
+    """
+    try:
+        available_slots = await di_container.availability_service.get_available_slots(
+            doctor_id=doctor_id,
+            date=date,
+            duration_minutes=duration_minutes
+        )
+        
+        return {
+            "doctor_id": doctor_id,
+            "date": date.isoformat(),
+            "available_slots": [
+                {
+                    "start_time": slot.start_time.isoformat(),
+                    "end_time": slot.end_time.isoformat()
+                }
+                for slot in available_slots
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error checking availability: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/appointments/{appointment_id}", response_model=AppointmentResponseDTO)
