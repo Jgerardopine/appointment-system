@@ -1,0 +1,994 @@
+{
+  "name": "Telegram Bot - Sistema de Citas Médicas",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        500
+      ],
+      "webhookId": "telegram-bot-main",
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse incoming Telegram message\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const message = item.json.message;\n  \n  if (!message) {\n    continue;\n  }\n  \n  const text = message.text || '';\n  const chatId = message.chat?.id;\n  const userId = message.from?.id;\n  const username = message.from?.username;\n  const firstName = message.from?.first_name;\n  \n  // Parse command and parameters\n  let command = '';\n  let params = {};\n  \n  if (text.startsWith('/')) {\n    const parts = text.split(' ');\n    command = parts[0].substring(1);\n    \n    // Parse parameters based on command\n    if (command === 'agendar' && parts.length >= 4) {\n      params = {\n        doctor: parts.slice(1, -2).join(' '),\n        date: parts[parts.length - 2],\n        time: parts[parts.length - 1]\n      };\n    } else if (command === 'verificar' || command === 'cancelar' || command === 'confirmar') {\n      params = {\n        appointmentId: parts[1]\n      };\n    } else if (command === 'doctores') {\n      params = {\n        specialty: parts.slice(1).join(' ') || null\n      };\n    } else if (command === 'disponibilidad' && parts.length >= 3) {\n      params = {\n        doctorId: parts[1],\n        date: parts[2]\n      };\n    } else if (command === 'doctor_info') {\n      params = {\n        doctorId: parts[1]\n      };\n    }\n  } else {\n    command = 'natural';\n    params = { text: text };\n  }\n  \n  results.push({\n    json: {\n      command,\n      params,\n      chatId,\n      userId,\n      username,\n      firstName,\n      originalText: text,\n      timestamp: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "parse-message",
+      "name": "Parse Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "start"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "agendar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "agendar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "verificar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "verificar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "cancelar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancelar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "mis_citas",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mis_citas"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "ayuda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ayuda"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "doctores",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "doctores"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "disponibilidad",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "disponibilidad"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "confirmar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "confirmar"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "command-router",
+      "name": "Command Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        640,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate welcome message\nconst firstName = $input.first().json.firstName || 'Usuario';\n\nconst welcomeMessage = `🏥 ¡Hola ${firstName}! Bienvenido al Sistema de Citas Médicas\n\nPuedo ayudarte con:\n\n👨‍⚕️ /doctores - Ver doctores disponibles\n📅 /disponibilidad - Ver horarios disponibles\n📝 /agendar - Agendar nueva cita\n✅ /confirmar - Confirmar cita programada\n🔍 /verificar - Verificar estado de cita\n❌ /cancelar - Cancelar cita existente\n📋 /mis_citas - Ver todas tus citas\n❓ /ayuda - Ver ayuda detallada\n\n💡 **Flujo recomendado:**\n1. Ver doctores con /doctores\n2. Revisar disponibilidad\n3. Agendar tu cita\n4. Confirmar para asegurar\n\n¿Cómo puedo ayudarte hoy?`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '👨‍⚕️ Ver Doctores', callback_data: '/doctores' },\n      { text: '📅 Agendar Cita', callback_data: '/agendar' }\n    ],\n    [\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' },\n      { text: '❓ Ayuda', callback_data: '/ayuda' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: $input.first().json.chatId,\n    message: welcomeMessage,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-welcome",
+      "name": "Format Welcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate appointment parameters\nconst params = $input.first().json.params;\nconst chatId = $input.first().json.chatId;\nconst userId = $input.first().json.userId;\n\nif (!params.doctor || !params.date || !params.time) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ Formato incorrecto\\n\\nUsa: /agendar [Doctor] [Fecha] [Hora]\\n\\nEjemplo:\\n/agendar Dr. López 2024-11-25 10:00'\n    }\n  }];\n}\n\n// Parse and validate date\nconst appointmentDate = new Date(params.date);\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nif (appointmentDate < today) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ No puedes agendar citas en fechas pasadas'\n    }\n  }];\n}\n\n// Validate time format\nconst timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;\nif (!timeRegex.test(params.time)) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ Formato de hora inválido. Usa formato HH:MM (ej: 10:00)'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    userId: userId,\n    appointment: {\n      patient_id: userId.toString(),\n      doctor_id: 'doc_' + params.doctor.toLowerCase().replace(/[^a-z0-9]/g, ''),\n      appointment_date: params.date,\n      appointment_time: params.time + ':00',\n      duration_minutes: 30,\n      reason: 'Consulta general'\n    }\n  }\n}];"
+      },
+      "id": "validate-appointment",
+      "name": "Validate Appointment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-valid",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-valid",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api-gateway:3000/api/appointments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"patient_id\": \"{{ $json.appointment.patient_id }}\",\n  \"doctor_id\": \"{{ $json.appointment.doctor_id }}\",\n  \"appointment_date\": \"{{ $json.appointment.appointment_date }}\",\n  \"appointment_time\": \"{{ $json.appointment.appointment_time }}\",\n  \"duration_minutes\": {{ $json.appointment.duration_minutes }},\n  \"reason\": \"{{ $json.appointment.reason }}\"\n}",
+        "options": {}
+      },
+      "id": "create-appointment-api",
+      "name": "Create Appointment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1240,
+        360
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format success or error message\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error || !response.id) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al crear la cita\\n\\n${response.error || response.message || 'Error desconocido'}\\n\\nPor favor intenta nuevamente.`,\n      success: false\n    }\n  }];\n}\n\n// Success\nconst appointment = response;\nconst date = new Date(appointment.appointment_date);\nconst dateStr = date.toLocaleDateString('es-MX', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric'\n});\n\nconst successMessage = `✅ ¡Cita Agendada Exitosamente!\\n\\n📋 **Detalles de tu cita:**\\n🆔 ID: ${appointment.id}\\n👨‍⚕️ Doctor: ${appointment.doctor_id}\\n📅 Fecha: ${dateStr}\\n⏰ Hora: ${appointment.start_time || appointment.appointment_time}\\n⏱ Duración: ${appointment.duration_minutes} minutos\\n\\n📌 Estado: ${appointment.status}\\n\\n💡 Te enviaremos un recordatorio 24 horas antes de tu cita.`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📋 Ver Mis Citas', callback_data: '/mis_citas' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: successMessage,\n    keyboard: keyboard,\n    success: true\n  }\n}];"
+      },
+      "id": "format-appointment-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate verification parameters\nconst params = $input.first().json.params;\nconst chatId = $input.first().json.chatId;\n\nif (!params.appointmentId) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ Por favor proporciona el ID de la cita\\n\\nUsa: /verificar [ID_CITA]\\n\\nEjemplo:\\n/verificar 1'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    appointmentId: params.appointmentId\n  }\n}];"
+      },
+      "id": "validate-verify",
+      "name": "Validate Verify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://api-gateway:3000/api/appointments/{{ $json.appointmentId }}",
+        "options": {}
+      },
+      "id": "get-appointment-api",
+      "name": "Get Appointment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        560
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format verification response\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error || !response.id) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ No se encontró la cita con ese ID\\n\\nVerifica el ID e intenta nuevamente.`\n    }\n  }];\n}\n\nconst appointment = response;\nconst date = new Date(appointment.appointment_date);\nconst dateStr = date.toLocaleDateString('es-MX', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric'\n});\n\nlet statusEmoji = '📅';\nswitch(appointment.status) {\n  case 'confirmed': statusEmoji = '✅'; break;\n  case 'cancelled': statusEmoji = '❌'; break;\n  case 'completed': statusEmoji = '✔️'; break;\n  case 'no_show': statusEmoji = '⚠️'; break;\n}\n\nconst message = `📋 **Información de tu Cita**\\n\\n🆔 ID: ${appointment.id}\\n${statusEmoji} Estado: ${appointment.status}\\n👨‍⚕️ Doctor: ${appointment.doctor_id}\\n📅 Fecha: ${dateStr}\\n⏰ Hora: ${appointment.start_time || appointment.appointment_time}\\n⏱ Duración: ${appointment.duration_minutes} minutos\\n\\n${appointment.notes ? `📝 Notas: ${appointment.notes}` : ''}\\n${appointment.cancellation_reason ? `❌ Razón de cancelación: ${appointment.cancellation_reason}` : ''}`;\n\nconst keyboard = appointment.status === 'scheduled' ? {\n  inline_keyboard: [\n    [\n      { text: '✅ Confirmar', callback_data: `/confirmar ${appointment.id}` },\n      { text: '❌ Cancelar', callback_data: `/cancelar ${appointment.id}` }\n    ],\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n} : {\n  inline_keyboard: [\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-verify-response",
+      "name": "Format Verify Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate cancellation parameters\nconst params = $input.first().json.params;\nconst chatId = $input.first().json.chatId;\n\nif (!params.appointmentId) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: '❌ Por favor proporciona el ID de la cita\\n\\nUsa: /cancelar [ID_CITA]\\n\\nEjemplo:\\n/cancelar 1'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    appointmentId: params.appointmentId\n  }\n}];"
+      },
+      "id": "validate-cancel",
+      "name": "Validate Cancel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://api-gateway:3000/api/appointments/{{ $json.appointmentId }}",
+        "options": {}
+      },
+      "id": "cancel-appointment-api",
+      "name": "Cancel Appointment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        700
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format cancellation response\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al cancelar la cita\\n\\n${response.message || 'Error desconocido'}\\n\\nPor favor intenta nuevamente.`\n    }\n  }];\n}\n\nconst message = `✅ Cita cancelada exitosamente\\n\\n🆔 ID: ${previousData.appointmentId}\\n\\nPuedes agendar una nueva cita cuando lo necesites.`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Agendar Nueva Cita', callback_data: '/agendar' },\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' }\n    ],\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-cancel-response",
+      "name": "Format Cancel Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://api-gateway:3000/api/appointments?patient_id={{ $json.userId }}",
+        "options": {}
+      },
+      "id": "list-appointments-api",
+      "name": "List Appointments API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        840
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format appointments list\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al obtener tus citas\\n\\nIntenta nuevamente más tarde.`\n    }\n  }];\n}\n\nconst appointments = response.appointments || response || [];\n\nif (!Array.isArray(appointments) || appointments.length === 0) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `📋 No tienes citas registradas\\n\\n¿Quieres agendar una nueva cita?`,\n      keyboard: {\n        inline_keyboard: [\n          [\n            { text: '📅 Agendar Cita', callback_data: '/agendar' },\n            { text: '🏠 Menú Principal', callback_data: '/start' }\n          ]\n        ]\n      }\n    }\n  }];\n}\n\nlet message = `📋 **Tus Citas (${appointments.length})**\\n\\n`;\n\nappointments.forEach((apt, index) => {\n  const date = new Date(apt.appointment_date);\n  const dateStr = date.toLocaleDateString('es-MX', {\n    weekday: 'short',\n    month: 'short',\n    day: 'numeric'\n  });\n  \n  let statusEmoji = '📅';\n  switch(apt.status) {\n    case 'confirmed': statusEmoji = '✅'; break;\n    case 'cancelled': statusEmoji = '❌'; break;\n    case 'completed': statusEmoji = '✔️'; break;\n  }\n  \n  message += `${index + 1}. ${statusEmoji} **${dateStr}** - ${apt.start_time || apt.appointment_time}\\n`;\n  message += `   👨‍⚕️ ${apt.doctor_id}\\n`;\n  message += `   🆔 ID: ${apt.id}\\n\\n`;\n});\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Nueva Cita', callback_data: '/agendar' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-list-response",
+      "name": "Format List Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        840
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate help message\nconst chatId = $input.first().json.chatId;\n\nconst helpMessage = `❓ **Ayuda - Sistema de Citas Médicas**\\n\\n**Comandos Disponibles:**\\n\\n👨‍⚕️ **/doctores** [especialidad]\\nVer lista de doctores disponibles\\nEjemplo: /doctores\\nEjemplo: /doctores cardiologia\\n\\n📅 **/disponibilidad** [ID_Doctor] [Fecha]\\nVer horarios disponibles de un doctor\\nEjemplo: /disponibilidad doc_lopez 2024-12-15\\n\\n📝 **/agendar** [ID_Doctor] [Fecha] [Hora]\\nAgenda una nueva cita médica\\nEjemplo: /agendar doc_lopez 2024-12-15 10:00\\n\\n✅ **/confirmar** [ID_Cita]\\nConfirma una cita programada\\nEjemplo: /confirmar 1\\n\\n🔍 **/verificar** [ID_Cita]\\nVerifica el estado de una cita específica\\nEjemplo: /verificar 1\\n\\n❌ **/cancelar** [ID_Cita]\\nCancela una cita existente\\nEjemplo: /cancelar 1\\n\\n📋 **/mis_citas**\\nMuestra todas tus citas programadas\\n\\n**Formatos Aceptados:**\\n• Fecha: AAAA-MM-DD (ej: 2024-12-15)\\n• Hora: HH:MM (ej: 10:00, 14:30)\\n• Horario: 8:00 AM - 6:00 PM\\n• Días: Lunes a Viernes\\n\\n**Flujo Recomendado:**\\n1️⃣ /doctores - Ver doctores\\n2️⃣ /disponibilidad - Ver horarios\\n3️⃣ /agendar - Agendar cita\\n4️⃣ /confirmar - Confirmar cita\\n\\n**Tips:**\\n• Las citas duran 30 minutos por defecto\\n• No se pueden agendar citas en el pasado\\n• Recibirás recordatorios 24h antes\\n• Confirma tu cita para garantizar el horario`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '👨‍⚕️ Ver Doctores', callback_data: '/doctores' },\n      { text: '📅 Agendar Cita', callback_data: '/agendar' }\n    ],\n    [\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: helpMessage,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-help",
+      "name": "Format Help",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        980
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "reply_markup": "={{ JSON.stringify($json.keyboard || {}) }}"
+        }
+      },
+      "id": "telegram-send",
+      "name": "Send Telegram Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1640,
+        580
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_credentials",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate doctores command parameters\nconst chatId = $input.first().json.chatId;\nconst params = $input.first().json.params;\nconst specialty = params.specialty;\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    specialty: specialty,\n    page: 1,\n    pageSize: 10\n  }\n}];"
+      },
+      "id": "validate-doctores",
+      "name": "Validate Doctores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://api-gateway:3000/api/appointments/doctors{{ $json.specialty ? '?specialty=' + $json.specialty : '' }}",
+        "options": {}
+      },
+      "id": "list-doctores-api",
+      "name": "List Doctores API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        1100
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format doctores list response\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error || !response.doctors) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al obtener la lista de doctores\\n\\nIntenta nuevamente más tarde.`\n    }\n  }];\n}\n\nconst doctors = response.doctors || [];\n\nif (doctors.length === 0) {\n  const specialty = previousData.specialty;\n  return [{\n    json: {\n      chatId: chatId,\n      message: `📋 No se encontraron doctores${specialty ? ' en ' + specialty : ''}\\n\\n¿Quieres ver todas las especialidades?\\n/ayuda`,\n      keyboard: {\n        inline_keyboard: [\n          [\n            { text: '👨‍⚕️ Ver Todos los Doctores', callback_data: '/doctores' },\n            { text: '🏠 Menú Principal', callback_data: '/start' }\n          ]\n        ]\n      }\n    }\n  }];\n}\n\nlet message = `👨‍⚕️ **Doctores Disponibles (${doctors.length})**\\n\\n`;\n\ndoctors.slice(0, 5).forEach((doctor, index) => {\n  message += `${index + 1}. **${doctor.name}**\\n`;\n  message += `   📋 Especialidad: ${doctor.specialty}\\n`;\n  \n  // Available days\n  const days = Array.isArray(doctor.available_days) ? doctor.available_days.join(', ') : 'No especificado';\n  message += `   📅 Días: ${days}\\n`;\n  \n  // Available hours\n  if (doctor.available_hours) {\n    const hours = doctor.available_hours;\n    message += `   ⏰ Horario: ${hours.start || '08:00'} - ${hours.end || '17:00'}\\n`;\n  }\n  \n  message += `   🆔 ID: ${doctor.id}\\n\\n`;\n});\n\nif (doctors.length > 5) {\n  message += `\\n... y ${doctors.length - 5} más\\n`;\n}\n\nmessage += `\\n💡 Usa /disponibilidad [ID] [fecha] para ver horarios`;\nmessage += `\\n💡 Usa /agendar [ID] [fecha] [hora] para agendar`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Agendar Cita', callback_data: '/agendar' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-doctores-response",
+      "name": "Format Doctores Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate disponibilidad command parameters\nconst params = $input.first().json.params;\nconst chatId = $input.first().json.chatId;\n\nif (!params.doctorId || !params.date) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: `❌ Formato incorrecto\\n\\nUsa: /disponibilidad [ID_DOCTOR] [FECHA]\\n\\nEjemplo:\\n/disponibilidad doc_lopez 2024-12-15\\n\\n💡 Usa /doctores para ver IDs de doctores`\n    }\n  }];\n}\n\n// Validate date format\nconst dateRegex = /^\\d{4}-\\d{2}-\\d{2}$/;\nif (!dateRegex.test(params.date)) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: `❌ Formato de fecha inválido\\n\\nUsa formato AAAA-MM-DD\\nEjemplo: 2024-12-15`\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    doctorId: params.doctorId,\n    date: params.date\n  }\n}];"
+      },
+      "id": "validate-disponibilidad",
+      "name": "Validate Disponibilidad",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://api-gateway:3000/api/appointments/appointments/availability/{{ $json.doctorId }}?date={{ $json.date }}&duration_minutes=30",
+        "options": {}
+      },
+      "id": "check-availability-api",
+      "name": "Check Availability API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        1240
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format availability response\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error || !response.available_slots) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al consultar disponibilidad\\n\\n${response.error || 'Doctor no encontrado'}\\n\\n💡 Usa /doctores para ver doctores disponibles`\n    }\n  }];\n}\n\nconst slots = response.available_slots || [];\nconst doctorId = response.doctor_id || previousData.doctorId;\nconst dateStr = response.date || previousData.date;\n\n// Format date\nconst date = new Date(dateStr);\nconst dateFormatted = date.toLocaleDateString('es-MX', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric'\n});\n\nif (slots.length === 0) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `📅 **Disponibilidad: ${doctorId}**\\n\\nFecha: ${dateFormatted}\\n\\n❌ No hay horarios disponibles para esta fecha\\n\\n💡 Intenta con otra fecha\\n💡 Usa /doctores para ver otros doctores`,\n      keyboard: {\n        inline_keyboard: [\n          [\n            { text: '👨‍⚕️ Ver Doctores', callback_data: '/doctores' },\n            { text: '🏠 Menú Principal', callback_data: '/start' }\n          ]\n        ]\n      }\n    }\n  }];\n}\n\nlet message = `📅 **Disponibilidad: ${doctorId}**\\n\\nFecha: ${dateFormatted}\\n\\n⏰ **Horarios Disponibles:**\\n\\n`;\n\nslots.slice(0, 10).forEach(slot => {\n  const startTime = slot.start_time.substring(0, 5); // HH:MM\n  const endTime = slot.end_time.substring(0, 5);\n  message += `🟢 ${startTime} - ${endTime}\\n`;\n});\n\nif (slots.length > 10) {\n  message += `\\n... y ${slots.length - 10} horarios más\\n`;\n}\n\nmessage += `\\n✅ ${slots.length} horarios disponibles\\n`;\nmessage += `\\n💡 Usa /agendar ${doctorId} ${dateStr} [hora] para agendar`;\nmessage += `\\nEjemplo: /agendar ${doctorId} ${dateStr} ${slots[0].start_time.substring(0, 5)}`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📅 Agendar', callback_data: `/agendar` },\n      { text: '👨‍⚕️ Ver Doctores', callback_data: '/doctores' }\n    ],\n    [\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-availability-response",
+      "name": "Format Availability Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate confirm command parameters\nconst params = $input.first().json.params;\nconst chatId = $input.first().json.chatId;\n\nif (!params.appointmentId) {\n  return [{\n    json: {\n      valid: false,\n      chatId: chatId,\n      message: `❌ Por favor proporciona el ID de la cita\\n\\nUsa: /confirmar [ID_CITA]\\n\\nEjemplo:\\n/confirmar 1\\n\\n💡 Usa /mis_citas para ver tus citas`\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    chatId: chatId,\n    appointmentId: params.appointmentId\n  }\n}];"
+      },
+      "id": "validate-confirm",
+      "name": "Validate Confirm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        1380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://api-gateway:3000/api/appointments/appointments/{{ $json.appointmentId }}/confirm",
+        "options": {}
+      },
+      "id": "confirm-appointment-api",
+      "name": "Confirm Appointment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        1380
+      ],
+      "continueOnFail": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format confirm response\nconst response = $input.first().json;\nconst previousData = $input.all()[0].json;\nconst chatId = previousData.chatId;\n\nif (response.error || !response.id) {\n  return [{\n    json: {\n      chatId: chatId,\n      message: `❌ Error al confirmar la cita\\n\\n${response.error || response.message || 'Cita no encontrada o ya confirmada'}\\n\\n💡 Usa /verificar ${previousData.appointmentId} para ver el estado`\n    }\n  }];\n}\n\nconst appointment = response;\nconst date = new Date(appointment.appointment_date);\nconst dateStr = date.toLocaleDateString('es-MX', {\n  weekday: 'long',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric'\n});\n\nconst message = `✅ **Cita Confirmada**\\n\\n🆔 ID: ${appointment.id}\\n👨‍⚕️ Doctor: ${appointment.doctor_id}\\n📅 Fecha: ${dateStr}\\n⏰ Hora: ${appointment.start_time || appointment.appointment_time}\\n⏱ Duración: ${appointment.duration_minutes} minutos\\n\\n📌 Estado: CONFIRMADA ✅\\n\\n📝 **Recordatorios:**\\n• Llegar 10 minutos antes\\n• Traer identificación oficial\\n• Traer estudios previos (si aplica)\\n\\n💡 Recibirás un recordatorio 24h antes`;\n\nconst keyboard = {\n  inline_keyboard: [\n    [\n      { text: '📋 Mis Citas', callback_data: '/mis_citas' },\n      { text: '🏠 Menú Principal', callback_data: '/start' }\n    ]\n  ]\n};\n\nreturn [{\n  json: {\n    chatId: chatId,\n    message: message,\n    keyboard: keyboard\n  }\n}];"
+      },
+      "id": "format-confirm-response",
+      "name": "Format Confirm Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        1380
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Command Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Command Router": {
+      "main": [
+        [
+          {
+            "node": "Format Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Verify",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "List Appointments API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Help",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Help",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Doctores",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Disponibilidad",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Welcome": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Appointment": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Create Appointment API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Appointment API": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Verify": {
+      "main": [
+        [
+          {
+            "node": "Get Appointment API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Appointment API": {
+      "main": [
+        [
+          {
+            "node": "Format Verify Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Verify Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Cancel": {
+      "main": [
+        [
+          {
+            "node": "Cancel Appointment API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel Appointment API": {
+      "main": [
+        [
+          {
+            "node": "Format Cancel Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Cancel Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Appointments API": {
+      "main": [
+        [
+          {
+            "node": "Format List Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format List Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Help": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Doctores": {
+      "main": [
+        [
+          {
+            "node": "List Doctores API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Doctores API": {
+      "main": [
+        [
+          {
+            "node": "Format Doctores Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Doctores Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Disponibilidad": {
+      "main": [
+        [
+          {
+            "node": "Check Availability API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Availability API": {
+      "main": [
+        [
+          {
+            "node": "Format Availability Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Availability Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Confirm": {
+      "main": [
+        [
+          {
+            "node": "Confirm Appointment API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Appointment API": {
+      "main": [
+        [
+          {
+            "node": "Format Confirm Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Confirm Response": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCreatedBy": "Sistema de Citas Médicas",
+    "instanceId": "appointment-system"
+  },
+  "id": "telegram-appointment-bot",
+  "tags": []
+}
